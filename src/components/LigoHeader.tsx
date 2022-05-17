@@ -1,38 +1,37 @@
-import { useWeb3React } from "@web3-react/core";
 import React from "react";
 import { Button, Col, Container, Nav, Navbar, Row } from "react-bootstrap";
-import { InjectedConnector } from "@web3-react/injected-connector";
-
-const injected = new InjectedConnector({
-  supportedChainIds: [42],
-});
+import { useMoralis } from "react-moralis";
 
 function LigoHeader() {
-  const { active, activate, deactivate, account } = useWeb3React();
+  const {
+    authenticate,
+    isAuthenticated,
+    isAuthenticating,
+    user,
+    account,
+    logout,
+  } = useMoralis();
 
   const [firstActivation, setFirstActivation] = React.useState(false);
-  const [activating, setActivating] = React.useState(false);
 
-  const connectInjected = React.useCallback(async () => {
-    setActivating(true);
+  const connect = React.useCallback(async () => {
     try {
-      await activate(injected);
+      await authenticate({ signingMessage: "Log in using Moralis" });
     } catch (error) {
       console.log(error);
     }
-    setActivating(false);
-  }, [activate]);
+  }, [authenticate]);
 
   // Connect eagerly
   React.useEffect(() => {
-    if (!active && !firstActivation) {
-      connectInjected();
+    if (!isAuthenticated && !firstActivation) {
+      connect();
       setFirstActivation(true);
     }
-  }, [active, connectInjected, firstActivation]);
+  }, [isAuthenticated, connect, firstActivation]);
 
   const disconnectWallet = async () => {
-    await deactivate();
+    await logout();
   };
 
   return (
@@ -48,16 +47,16 @@ function LigoHeader() {
         </Navbar.Collapse>
         <Navbar.Collapse className="justify-content-end">
           <Navbar.Text>
-            {active ? (
+            {isAuthenticated ? (
               <Button
                 variant="danger"
-                disabled={activating}
+                disabled={isAuthenticating}
                 onClick={disconnectWallet}
               >
                 Disconnect {account?.slice(0, 10)}
               </Button>
             ) : (
-              <Button disabled={activating} onClick={connectInjected}>
+              <Button disabled={isAuthenticating} onClick={connect}>
                 Connect Wallet
               </Button>
             )}
