@@ -10,9 +10,10 @@ const injected = new InjectedConnector({
 function LigoHeader() {
   const { active, activate, deactivate, account } = useWeb3React();
 
+  const [firstActivation, setFirstActivation] = React.useState(false);
   const [activating, setActivating] = React.useState(false);
 
-  async function connectInjected() {
+  const connectInjected = React.useCallback(async () => {
     setActivating(true);
     try {
       await activate(injected);
@@ -20,22 +21,29 @@ function LigoHeader() {
       console.log(error);
     }
     setActivating(false);
-  }
+  }, [activate]);
+
+  // Connect eagerly
+  React.useEffect(() => {
+    if (!active && !firstActivation) {
+      connectInjected();
+      setFirstActivation(true);
+    }
+  }, [active, connectInjected, firstActivation]);
 
   const disconnectWallet = async () => {
-    // await disconnect();
     await deactivate();
   };
 
   return (
     <Navbar bg="light" expand="lg">
       <Container>
-        <Navbar.Brand href="#">Ligo Demo</Navbar.Brand>
+        <Navbar.Brand href="/">Ligo Demo</Navbar.Brand>
         <Navbar.Toggle />
         <Navbar.Collapse>
           <Nav>
-            <Nav.Link href="#vehicles">My Vehicles</Nav.Link>
-            <Nav.Link href="#browse">Browse</Nav.Link>
+            <Nav.Link href="/">My Vehicles</Nav.Link>
+            <Nav.Link href="/browse">Browse</Nav.Link>
           </Nav>
         </Navbar.Collapse>
         <Navbar.Collapse className="justify-content-end">

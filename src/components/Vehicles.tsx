@@ -1,8 +1,7 @@
 import React from "react";
-import logo from "./logo.svg";
 import axios from "axios";
 import Smartcar from "@smartcar/auth";
-import LigoHeader from "./components/LigoHeader";
+import { Button, Col, Container, Row } from "react-bootstrap";
 
 async function onComplete(err: any, code: any, status: any) {
   console.log(process.env.REACT_APP_LIGO_NODE_ENDPOINT);
@@ -13,7 +12,7 @@ async function onComplete(err: any, code: any, status: any) {
   console.log(resp);
 }
 
-function App() {
+function Vehicles() {
   const smartcar = new Smartcar({
     clientId: process.env.REACT_APP_CLIENT_ID,
     redirectUri: process.env.REACT_APP_REDIRECT_URI,
@@ -26,7 +25,26 @@ function App() {
     onComplete: onComplete,
   });
 
-  return <LigoHeader />;
+  return (
+    <Container fluid>
+      <Row className="mt-5 p-5">
+        <Col className="text-center">
+          <h2>No Connected Vehicles Found</h2>
+        </Col>
+      </Row>
+      <Row>
+        <Col className="text-center">
+          <Button
+            onClick={() => {
+              smartcar.openDialog({ forcePrompt: true });
+            }}
+          >
+            Connect Vehicles
+          </Button>
+        </Col>
+      </Row>
+    </Container>
+  );
 }
 
-export default App;
+export default Vehicles;
