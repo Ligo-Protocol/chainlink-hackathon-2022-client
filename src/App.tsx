@@ -14,7 +14,7 @@ function App() {
   const smartcar = new Smartcar({
     clientId: process.env.REACT_APP_CLIENT_ID,
     redirectUri: process.env.REACT_APP_REDIRECT_URI,
-    scope: ['required:read_vehicle_info', 'required:read_odometer'],
+    scope: ['required:read_vehicle_info', 'required:read_odometer', 'required:read_location'],
     testMode: true,
     onComplete: onComplete,
   });
