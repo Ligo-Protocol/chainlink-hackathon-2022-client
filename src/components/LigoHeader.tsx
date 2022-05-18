@@ -1,12 +1,35 @@
+import axios from "axios";
 import React from "react";
-import { Button, Col, Container, Nav, Navbar, Row } from "react-bootstrap";
+import {
+  Button,
+  Col,
+  Container,
+  Modal,
+  Nav,
+  Navbar,
+  Row,
+} from "react-bootstrap";
 import { useMoralis } from "react-moralis";
 
 function LigoHeader() {
-  const { authenticate, isAuthenticated, isAuthenticating, account, logout } =
-    useMoralis();
+  const {
+    authenticate,
+    isAuthenticated,
+    isAuthenticating,
+    account,
+    user,
+    logout,
+  } = useMoralis();
 
   const [firstActivation, setFirstActivation] = React.useState(false);
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [encryptedToken, setEncryptedToken] = React.useState<string | null>(
+    null
+  );
+  const [show, setShow] = React.useState(false);
+
+  const handleClose = () => setShow(false);
+  const handleShow = () => setShow(true);
 
   const connect = React.useCallback(async () => {
     try {
@@ -28,6 +51,18 @@ function LigoHeader() {
     await logout();
   };
 
+  const generateToken = async () => {
+    setIsGenerating(true);
+    const resp = await axios.get(
+      `${process.env.REACT_APP_LIGO_NODE_ENDPOINT}/api/v0/smartcar/users/${
+        user!.id
+      }/token`
+    );
+    setEncryptedToken(resp.data.encryptedToken);
+    handleShow();
+    setIsGenerating(false);
+  };
+
   return (
     <Navbar bg="light" expand="lg">
       <Container>
@@ -42,13 +77,23 @@ function LigoHeader() {
         <Navbar.Collapse className="justify-content-end">
           <Navbar.Text>
             {isAuthenticated ? (
-              <Button
-                variant="danger"
-                disabled={isAuthenticating}
-                onClick={disconnectWallet}
-              >
-                Disconnect {account?.slice(0, 10)}
-              </Button>
+              <>
+                <Button
+                  variant="info"
+                  className="text-white mx-2"
+                  onClick={generateToken}
+                  disabled={isGenerating}
+                >
+                  Generate Token
+                </Button>
+                <Button
+                  variant="danger"
+                  disabled={isAuthenticating}
+                  onClick={disconnectWallet}
+                >
+                  Disconnect {account?.slice(0, 10)}
+                </Button>
+              </>
             ) : (
               <Button disabled={isAuthenticating} onClick={connect}>
                 Connect Wallet
@@ -57,6 +102,15 @@ function LigoHeader() {
           </Navbar.Text>
         </Navbar.Collapse>
       </Container>
+      <Modal show={show} onHide={handleClose}>
+        <Modal.Header closeButton>
+          <Modal.Title>Encrypted Access Token</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body className="text-wrap text-break">
+          <p>{encryptedToken}</p>
+        </Modal.Body>
+      </Modal>
     </Navbar>
   );
 }
