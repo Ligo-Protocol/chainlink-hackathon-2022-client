@@ -3,14 +3,8 @@ import { Button, Col, Container, Nav, Navbar, Row } from "react-bootstrap";
 import { useMoralis } from "react-moralis";
 
 function LigoHeader() {
-  const {
-    authenticate,
-    isAuthenticated,
-    isAuthenticating,
-    user,
-    account,
-    logout,
-  } = useMoralis();
+  const { authenticate, isAuthenticated, isAuthenticating, account, logout } =
+    useMoralis();
 
   const [firstActivation, setFirstActivation] = React.useState(false);
 
