@@ -11,6 +11,7 @@ type Vehicle = {
   model: string;
   year: number;
   vin: string;
+  meta: any;
 };
 
 function Vehicles() {
@@ -33,6 +34,8 @@ function Vehicles() {
     const web3Storage = new Web3Storage({
       token: process.env.REACT_APP_WEB3STORAGE_TOKEN!,
     });
+    vehicle.meta = null;
+
     const blob = new Blob([JSON.stringify(vehicle)], {
       type: "application/json",
     });
