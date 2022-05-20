@@ -3,6 +3,7 @@ import axios from "axios";
 import Smartcar from "@smartcar/auth";
 import { Button, Col, Container, ListGroup, Row, Tab } from "react-bootstrap";
 import { useMoralis } from "react-moralis";
+import { Web3Storage } from "web3.storage";
 
 type Vehicle = {
   id: string;
@@ -15,6 +16,7 @@ type Vehicle = {
 function Vehicles() {
   const { isAuthenticated, user } = useMoralis();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   async function onComplete(err: any, code: any, status: any) {
     await axios.post(
@@ -24,6 +26,21 @@ function Vehicles() {
       { code: code }
     );
     await fetchVehicles();
+  }
+
+  async function createListingFile(vehicle: Vehicle) {
+    setIsUploading(true);
+    const web3Storage = new Web3Storage({
+      token: process.env.REACT_APP_WEB3STORAGE_TOKEN!,
+    });
+    const blob = new Blob([JSON.stringify(vehicle)], {
+      type: "application/json",
+    });
+
+    const files = [new File([blob], "listing.json")];
+    const cid = await web3Storage.put(files, { wrapWithDirectory: false });
+    console.log("Saved listing: " + cid);
+    setIsUploading(false);
   }
 
   const smartcar = new Smartcar({
@@ -57,6 +74,22 @@ function Vehicles() {
     fetchVehicles();
   }, [fetchVehicles]);
 
+  const vehicleComponent = (vehicle: Vehicle) => (
+    <Tab.Pane key={vehicle.id} eventKey={`#${vehicle.id}`}>
+      <h2>
+        {vehicle.year} {vehicle.make} {vehicle.model}
+      </h2>
+      <p>Make: {vehicle.make}</p>
+      <p>Model: {vehicle.model}</p>
+      <p>Year: {vehicle.year}</p>
+      <p>ID: {vehicle.id}</p>
+      <p>VIN: {vehicle.vin}</p>
+      <Button disabled={isUploading} onClick={() => createListingFile(vehicle)}>
+        Create Vehicle Listing
+      </Button>
+    </Tab.Pane>
+  );
+
   return (
     <Container fluid>
       {isAuthenticated ? (
@@ -85,27 +118,14 @@ function Vehicles() {
               <Col sm={5}>
                 <ListGroup>
                   {vehicles.map((vehicle) => (
-                    <ListGroup.Item href={`#${vehicle.id}`}>
+                    <ListGroup.Item key={vehicle.id} href={`#${vehicle.id}`}>
                       {vehicle.id}
                     </ListGroup.Item>
                   ))}
                 </ListGroup>
               </Col>
               <Col sm={7} className="p-2">
-                <Tab.Content>
-                  {vehicles.map((vehicle) => (
-                    <Tab.Pane eventKey={`#${vehicle.id}`}>
-                      <h2>
-                        {vehicle.year} {vehicle.make} {vehicle.model}
-                      </h2>
-                      <p>Make: {vehicle.make}</p>
-                      <p>Model: {vehicle.model}</p>
-                      <p>Year: {vehicle.year}</p>
-                      <p>ID: {vehicle.id}</p>
-                      <p>VIN: {vehicle.vin}</p>
-                    </Tab.Pane>
-                  ))}
-                </Tab.Content>
+                <Tab.Content>{vehicles.map(vehicleComponent)}</Tab.Content>
               </Col>
             </Row>
           </Tab.Container>
