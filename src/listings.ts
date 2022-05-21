@@ -1,3 +1,4 @@
+import axios from "axios";
 import { Web3Storage } from "web3.storage";
 
 export type Vehicle = {
@@ -13,6 +14,7 @@ export type Vehicle = {
 export interface ListingManager {
   createListing(vehicle: Vehicle): Promise<void>;
   getListingCid(vehicleId: string): Promise<string>;
+  getListings(): Promise<Vehicle[]>;
 }
 
 export class LocalListingManager implements ListingManager {
@@ -39,12 +41,31 @@ export class LocalListingManager implements ListingManager {
 
   async getListingCid(vehicleId: string): Promise<string> {
     const listingsRaw = localStorage.getItem("listings");
-    let listings: Record<string, string> = listingsRaw
+    const listings: Record<string, string> = listingsRaw
       ? JSON.parse(listingsRaw)
       : {};
 
     const cid = listings[vehicleId];
     return cid;
+  }
+
+  async getListings(): Promise<Vehicle[]> {
+    const listingsRaw = localStorage.getItem("listings");
+    const listings: Record<string, string> = listingsRaw
+      ? JSON.parse(listingsRaw)
+      : {};
+
+    const vehicles = await Promise.all(
+      Object.keys(listings).map(async (vehicleId: string) => {
+        const cid = listings[vehicleId];
+        const resp = await axios.get(`https://${cid}.ipfs.dweb.link`);
+        let vehicle = resp.data as Vehicle;
+        vehicle.cid = cid;
+        return vehicle;
+      })
+    );
+
+    return vehicles;
   }
 }
 

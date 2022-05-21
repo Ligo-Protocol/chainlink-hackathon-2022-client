@@ -7,6 +7,7 @@ import { MoralisProvider } from "react-moralis";
 import "bootstrap/dist/css/bootstrap.min.css";
 import LigoHeader from "./components/LigoHeader";
 import Vehicles from "./components/Vehicles";
+import Browse from "./components/Browse";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -21,7 +22,7 @@ root.render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Vehicles />} />
-          <Route path="/browse" element={<div>Hello 2</div>} />
+          <Route path="/browse" element={<Browse />} />
         </Routes>
       </BrowserRouter>
     </MoralisProvider>
