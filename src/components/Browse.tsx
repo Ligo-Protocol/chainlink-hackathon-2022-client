@@ -1,3 +1,4 @@
+import { ethers } from "ethers";
 import React, { useState } from "react";
 import { Button, Col, Container, ListGroup, Row, Tab } from "react-bootstrap";
 import { useMoralis } from "react-moralis";
@@ -33,6 +34,16 @@ function Browse() {
       <p>Year: {vehicle.year}</p>
       <p>ID: {vehicle.id}</p>
       <p>VIN: {vehicle.vin}</p>
+      {vehicle.baseHourFee ? (
+        <p className="fw-bold">{`Base Hour Fee: ${ethers.utils.formatEther(
+          vehicle.baseHourFee
+        )} ETH`}</p>
+      ) : null}
+      {vehicle.bondRequired ? (
+        <p className="fw-bold">{`Bond Required: ${ethers.utils.formatEther(
+          vehicle.bondRequired
+        )} ETH`}</p>
+      ) : null}
       {vehicle.cid ? (
         <Button
           href={`https://${vehicle.cid}.ipfs.dweb.link`}

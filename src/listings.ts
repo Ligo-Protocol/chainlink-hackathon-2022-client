@@ -1,4 +1,5 @@
 import axios from "axios";
+import { BigNumber } from "ethers";
 import { Web3Storage } from "web3.storage";
 
 export type Vehicle = {
@@ -9,11 +10,23 @@ export type Vehicle = {
   vin: string;
   cid?: string;
   meta?: any;
+  baseHourFee?: BigNumber;
+  bondRequired?: BigNumber;
+};
+
+type Listing = {
+  cid: string;
+  baseHourFee: BigNumber;
+  bondRequired: BigNumber;
 };
 
 export interface ListingManager {
-  createListing(vehicle: Vehicle): Promise<void>;
-  getListingCid(vehicleId: string): Promise<string>;
+  createListing(
+    vehicle: Vehicle,
+    baseHourFee: BigNumber,
+    bondRequired: BigNumber
+  ): Promise<void>;
+  getListing(vehicleId: string): Promise<Listing | null>;
   getListings(): Promise<Vehicle[]>;
 }
 
@@ -22,45 +35,52 @@ export class LocalListingManager implements ListingManager {
     token: process.env.REACT_APP_WEB3STORAGE_TOKEN!,
   });
 
-  async createListing(vehicle: Vehicle) {
+  async createListing(
+    vehicle: Vehicle,
+    baseHourFee: BigNumber,
+    bondRequired: BigNumber
+  ) {
     // Save to Filecoin
     const cid = await saveListingToFilecoin(this.web3Storage, vehicle);
 
+    const listing: Listing = {
+      baseHourFee: baseHourFee,
+      bondRequired: bondRequired,
+      cid: cid,
+    };
     // Save cid to localStorage
     const listingsRaw = localStorage.getItem("listings");
-    let listings: Record<string, string> = listingsRaw
+    let listings: Record<string, Listing> = listingsRaw
       ? JSON.parse(listingsRaw)
       : {};
 
     listings = {
       ...listings,
-      [vehicle.id]: cid,
+      [vehicle.id]: listing,
     };
     localStorage.setItem("listings", JSON.stringify(listings));
   }
 
-  async getListingCid(vehicleId: string): Promise<string> {
+  async getListing(vehicleId: string): Promise<Listing | null> {
     const listingsRaw = localStorage.getItem("listings");
-    const listings: Record<string, string> = listingsRaw
+    const listings: Record<string, Listing> = listingsRaw
       ? JSON.parse(listingsRaw)
       : {};
 
-    const cid = listings[vehicleId];
-    return cid;
+    return listings[vehicleId];
   }
 
   async getListings(): Promise<Vehicle[]> {
     const listingsRaw = localStorage.getItem("listings");
-    const listings: Record<string, string> = listingsRaw
+    const listings: Record<string, Listing> = listingsRaw
       ? JSON.parse(listingsRaw)
       : {};
 
     const vehicles = await Promise.all(
       Object.keys(listings).map(async (vehicleId: string) => {
-        const cid = listings[vehicleId];
+        const cid = listings[vehicleId].cid;
         const resp = await axios.get(`https://${cid}.ipfs.dweb.link`);
-        let vehicle = resp.data as Vehicle;
-        vehicle.cid = cid;
+        let vehicle = { ...(resp.data as Vehicle), ...listings[vehicleId] };
         return vehicle;
       })
     );

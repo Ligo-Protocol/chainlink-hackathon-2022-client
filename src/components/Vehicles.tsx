@@ -1,16 +1,126 @@
 import React, { useState } from "react";
 import axios from "axios";
 import Smartcar from "@smartcar/auth";
-import { Button, Col, Container, ListGroup, Row, Tab } from "react-bootstrap";
+import {
+  Button,
+  Col,
+  Container,
+  Form,
+  ListGroup,
+  Modal,
+  Row,
+  Tab,
+} from "react-bootstrap";
 import { useMoralis } from "react-moralis";
 import { LocalListingManager, Vehicle } from "../listings";
+import { BigNumber, ethers } from "ethers";
 
 const listingManager = new LocalListingManager();
+
+function VehicleComponent({
+  vehicle,
+  fetchVehicles,
+}: {
+  vehicle: Vehicle;
+  fetchVehicles: () => Promise<void>;
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [show, setShow] = useState(false);
+
+  const handleClose = () => setShow(false);
+  const handleShow = () => setShow(true);
+
+  const [bondRequired, setBondRequired] = useState<BigNumber | null>(null);
+  const [hourFee, setHourFee] = useState<BigNumber | null>(null);
+
+  async function createListing() {
+    if (!bondRequired || !hourFee) return;
+
+    setIsUploading(true);
+    await listingManager.createListing(vehicle, bondRequired, hourFee);
+    await fetchVehicles();
+    setIsUploading(false);
+    handleClose();
+  }
+
+  return (
+    <>
+      <Tab.Pane key={vehicle.id} eventKey={`#${vehicle.id}`}>
+        <h2>
+          {vehicle.year} {vehicle.make} {vehicle.model}
+        </h2>
+        <p>Make: {vehicle.make}</p>
+        <p>Model: {vehicle.model}</p>
+        <p>Year: {vehicle.year}</p>
+        <p>ID: {vehicle.id}</p>
+        <p>VIN: {vehicle.vin}</p>
+        {vehicle.baseHourFee ? (
+          <p className="fw-bold">{`Base Hour Fee: ${ethers.utils.formatEther(
+            vehicle.baseHourFee
+          )} ETH`}</p>
+        ) : null}
+        {vehicle.bondRequired ? (
+          <p className="fw-bold">{`Bond Required: ${ethers.utils.formatEther(
+            vehicle.bondRequired
+          )} ETH`}</p>
+        ) : null}
+        {vehicle.cid ? (
+          <Button
+            href={`https://${vehicle.cid}.ipfs.dweb.link`}
+            variant="secondary"
+            target="__blank"
+          >
+            View Raw Listing
+          </Button>
+        ) : (
+          <Button onClick={handleShow}>Create Vehicle Listing</Button>
+        )}
+      </Tab.Pane>
+      <Modal show={show} onHide={handleClose}>
+        <Modal.Header closeButton>
+          <Modal.Title>Create Listing</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3" controlId="formHourFee">
+              <Form.Label>Base Hour Fee</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Base Hour Fee (ETH)"
+                onChange={(event) => {
+                  setHourFee(ethers.utils.parseEther(event.target.value));
+                }}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3" controlId="formBond">
+              <Form.Label>Bond Required</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Bond Required (ETH)"
+                onChange={(event) => {
+                  setBondRequired(ethers.utils.parseEther(event.target.value));
+                }}
+              />
+            </Form.Group>
+            <Button
+              variant="primary"
+              disabled={isUploading || !bondRequired || !hourFee}
+              onClick={createListing}
+            >
+              Submit
+            </Button>
+          </Form>
+        </Modal.Body>
+      </Modal>
+    </>
+  );
+}
 
 function Vehicles() {
   const { isAuthenticated, user } = useMoralis();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
 
   async function onComplete(err: any, code: any, status: any) {
     await axios.post(
@@ -20,13 +130,6 @@ function Vehicles() {
       { code: code }
     );
     await fetchVehicles();
-  }
-
-  async function createListing(vehicle: Vehicle) {
-    setIsUploading(true);
-    await listingManager.createListing(vehicle);
-    await fetchVehicles();
-    setIsUploading(false);
   }
 
   const smartcar = new Smartcar({
@@ -55,7 +158,12 @@ function Vehicles() {
 
     const vehicles: Vehicle[] = await Promise.all(
       resp.data.vehicles.map(async (v: Vehicle) => {
-        v.cid = await listingManager.getListingCid(v.id);
+        const listing = await listingManager.getListing(v.id);
+        if (listing) {
+          v.cid = listing.cid;
+          v.bondRequired = listing.bondRequired;
+          v.baseHourFee = listing.baseHourFee;
+        }
         return v;
       })
     );
@@ -66,32 +174,6 @@ function Vehicles() {
   React.useEffect(() => {
     fetchVehicles();
   }, [fetchVehicles]);
-
-  const vehicleComponent = (vehicle: Vehicle) => (
-    <Tab.Pane key={vehicle.id} eventKey={`#${vehicle.id}`}>
-      <h2>
-        {vehicle.year} {vehicle.make} {vehicle.model}
-      </h2>
-      <p>Make: {vehicle.make}</p>
-      <p>Model: {vehicle.model}</p>
-      <p>Year: {vehicle.year}</p>
-      <p>ID: {vehicle.id}</p>
-      <p>VIN: {vehicle.vin}</p>
-      {vehicle.cid ? (
-        <Button
-          href={`https://${vehicle.cid}.ipfs.dweb.link`}
-          variant="secondary"
-          target="__blank"
-        >
-          View Raw Listing
-        </Button>
-      ) : (
-        <Button disabled={isUploading} onClick={() => createListing(vehicle)}>
-          Create Vehicle Listing
-        </Button>
-      )}
-    </Tab.Pane>
-  );
 
   return (
     <Container fluid>
@@ -128,7 +210,14 @@ function Vehicles() {
                 </ListGroup>
               </Col>
               <Col sm={7} className="p-2">
-                <Tab.Content>{vehicles.map(vehicleComponent)}</Tab.Content>
+                <Tab.Content>
+                  {vehicles.map((vehicle: Vehicle) => (
+                    <VehicleComponent
+                      vehicle={vehicle}
+                      fetchVehicles={fetchVehicles}
+                    />
+                  ))}
+                </Tab.Content>
               </Col>
             </Row>
           </Tab.Container>
