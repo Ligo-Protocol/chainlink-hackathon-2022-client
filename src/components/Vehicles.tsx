@@ -3,18 +3,14 @@ import axios from "axios";
 import Smartcar from "@smartcar/auth";
 import { Button, Col, Container, ListGroup, Row, Tab } from "react-bootstrap";
 import { useMoralis } from "react-moralis";
+import { LocalListingManager, Vehicle } from "../listings";
 
-type Vehicle = {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  vin: string;
-};
+const listingManager = new LocalListingManager();
 
 function Vehicles() {
   const { isAuthenticated, user } = useMoralis();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   async function onComplete(err: any, code: any, status: any) {
     await axios.post(
@@ -24,6 +20,13 @@ function Vehicles() {
       { code: code }
     );
     await fetchVehicles();
+  }
+
+  async function createListing(vehicle: Vehicle) {
+    setIsUploading(true);
+    await listingManager.createListing(vehicle);
+    await fetchVehicles();
+    setIsUploading(false);
   }
 
   const smartcar = new Smartcar({
@@ -50,12 +53,45 @@ function Vehicles() {
       }/vehicles`
     );
 
-    setVehicles(resp.data.vehicles);
+    const vehicles: Vehicle[] = await Promise.all(
+      resp.data.vehicles.map(async (v: Vehicle) => {
+        v.cid = await listingManager.getListingCid(v.id);
+        return v;
+      })
+    );
+
+    setVehicles(vehicles);
   }, [user]);
 
   React.useEffect(() => {
     fetchVehicles();
   }, [fetchVehicles]);
+
+  const vehicleComponent = (vehicle: Vehicle) => (
+    <Tab.Pane key={vehicle.id} eventKey={`#${vehicle.id}`}>
+      <h2>
+        {vehicle.year} {vehicle.make} {vehicle.model}
+      </h2>
+      <p>Make: {vehicle.make}</p>
+      <p>Model: {vehicle.model}</p>
+      <p>Year: {vehicle.year}</p>
+      <p>ID: {vehicle.id}</p>
+      <p>VIN: {vehicle.vin}</p>
+      {vehicle.cid ? (
+        <Button
+          href={`https://${vehicle.cid}.ipfs.dweb.link`}
+          variant="secondary"
+          target="__blank"
+        >
+          View Raw Listing
+        </Button>
+      ) : (
+        <Button disabled={isUploading} onClick={() => createListing(vehicle)}>
+          Create Vehicle Listing
+        </Button>
+      )}
+    </Tab.Pane>
+  );
 
   return (
     <Container fluid>
@@ -85,27 +121,14 @@ function Vehicles() {
               <Col sm={5}>
                 <ListGroup>
                   {vehicles.map((vehicle) => (
-                    <ListGroup.Item href={`#${vehicle.id}`}>
+                    <ListGroup.Item key={vehicle.id} href={`#${vehicle.id}`}>
                       {vehicle.id}
                     </ListGroup.Item>
                   ))}
                 </ListGroup>
               </Col>
               <Col sm={7} className="p-2">
-                <Tab.Content>
-                  {vehicles.map((vehicle) => (
-                    <Tab.Pane eventKey={`#${vehicle.id}`}>
-                      <h2>
-                        {vehicle.year} {vehicle.make} {vehicle.model}
-                      </h2>
-                      <p>Make: {vehicle.make}</p>
-                      <p>Model: {vehicle.model}</p>
-                      <p>Year: {vehicle.year}</p>
-                      <p>ID: {vehicle.id}</p>
-                      <p>VIN: {vehicle.vin}</p>
-                    </Tab.Pane>
-                  ))}
-                </Tab.Content>
+                <Tab.Content>{vehicles.map(vehicleComponent)}</Tab.Content>
               </Col>
             </Row>
           </Tab.Container>
