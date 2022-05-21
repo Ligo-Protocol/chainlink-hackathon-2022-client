@@ -6,11 +6,13 @@ export type Vehicle = {
   model: string;
   year: number;
   vin: string;
-  meta: any;
+  cid?: string;
+  meta?: any;
 };
 
 export interface ListingManager {
   createListing(vehicle: Vehicle): Promise<void>;
+  getListingCid(vehicleId: string): Promise<string>;
 }
 
 export class LocalListingManager implements ListingManager {
@@ -24,15 +26,25 @@ export class LocalListingManager implements ListingManager {
 
     // Save cid to localStorage
     const listingsRaw = localStorage.getItem("listings");
-    let listings: Record<string, string>[] = listingsRaw
+    let listings: Record<string, string> = listingsRaw
       ? JSON.parse(listingsRaw)
-      : [];
+      : {};
 
     listings = {
       ...listings,
       [vehicle.id]: cid,
     };
     localStorage.setItem("listings", JSON.stringify(listings));
+  }
+
+  async getListingCid(vehicleId: string): Promise<string> {
+    const listingsRaw = localStorage.getItem("listings");
+    let listings: Record<string, string> = listingsRaw
+      ? JSON.parse(listingsRaw)
+      : {};
+
+    const cid = listings[vehicleId];
+    return cid;
   }
 }
 

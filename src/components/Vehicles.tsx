@@ -25,6 +25,7 @@ function Vehicles() {
   async function createListing(vehicle: Vehicle) {
     setIsUploading(true);
     await listingManager.createListing(vehicle);
+    await fetchVehicles();
     setIsUploading(false);
   }
 
@@ -52,7 +53,14 @@ function Vehicles() {
       }/vehicles`
     );
 
-    setVehicles(resp.data.vehicles);
+    const vehicles: Vehicle[] = await Promise.all(
+      resp.data.vehicles.map(async (v: Vehicle) => {
+        v.cid = await listingManager.getListingCid(v.id);
+        return v;
+      })
+    );
+
+    setVehicles(vehicles);
   }, [user]);
 
   React.useEffect(() => {
@@ -69,9 +77,19 @@ function Vehicles() {
       <p>Year: {vehicle.year}</p>
       <p>ID: {vehicle.id}</p>
       <p>VIN: {vehicle.vin}</p>
-      <Button disabled={isUploading} onClick={() => createListing(vehicle)}>
-        Create Vehicle Listing
-      </Button>
+      {vehicle.cid ? (
+        <Button
+          href={`https://${vehicle.cid}.ipfs.dweb.link`}
+          variant="secondary"
+          target="__blank"
+        >
+          View Raw Listing
+        </Button>
+      ) : (
+        <Button disabled={isUploading} onClick={() => createListing(vehicle)}>
+          Create Vehicle Listing
+        </Button>
+      )}
     </Tab.Pane>
   );
 
