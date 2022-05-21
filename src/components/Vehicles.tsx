@@ -3,16 +3,9 @@ import axios from "axios";
 import Smartcar from "@smartcar/auth";
 import { Button, Col, Container, ListGroup, Row, Tab } from "react-bootstrap";
 import { useMoralis } from "react-moralis";
-import { Web3Storage } from "web3.storage";
+import { LocalListingManager, Vehicle } from "../listings";
 
-type Vehicle = {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  vin: string;
-  meta: any;
-};
+const listingManager = new LocalListingManager();
 
 function Vehicles() {
   const { isAuthenticated, user } = useMoralis();
@@ -29,20 +22,9 @@ function Vehicles() {
     await fetchVehicles();
   }
 
-  async function createListingFile(vehicle: Vehicle) {
+  async function createListing(vehicle: Vehicle) {
     setIsUploading(true);
-    const web3Storage = new Web3Storage({
-      token: process.env.REACT_APP_WEB3STORAGE_TOKEN!,
-    });
-    vehicle.meta = null;
-
-    const blob = new Blob([JSON.stringify(vehicle)], {
-      type: "application/json",
-    });
-
-    const files = [new File([blob], "listing.json")];
-    const cid = await web3Storage.put(files, { wrapWithDirectory: false });
-    console.log("Saved listing: " + cid);
+    await listingManager.createListing(vehicle);
     setIsUploading(false);
   }
 
@@ -87,7 +69,7 @@ function Vehicles() {
       <p>Year: {vehicle.year}</p>
       <p>ID: {vehicle.id}</p>
       <p>VIN: {vehicle.vin}</p>
-      <Button disabled={isUploading} onClick={() => createListingFile(vehicle)}>
+      <Button disabled={isUploading} onClick={() => createListing(vehicle)}>
         Create Vehicle Listing
       </Button>
     </Tab.Pane>
