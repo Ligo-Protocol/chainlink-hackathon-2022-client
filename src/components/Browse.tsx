@@ -21,11 +21,11 @@ function VehicleComponent({
   async function requestRental() {
     setIsLoading(true);
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 1);
+    startDate.setMinutes(startDate.getMinutes() + 10);
+    const endDate = new Date(startDate);
+    endDate.setHours(endDate.getHours() + 1);
     await listingManager?.requestNewRental(
-      vehicle.id,
-      vehicle.vehicleOwner!,
+      vehicle,
       account!,
       startDate,
       endDate

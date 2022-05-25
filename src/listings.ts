@@ -34,8 +34,7 @@ export interface ListingManager {
   getListing(vehicleId: string): Promise<Listing | null>;
   getListings(): Promise<Vehicle[]>;
   requestNewRental(
-    vehicleId: string,
-    vehicleOwner: string,
+    vehicle: Vehicle,
     renter: string,
     startDate: Date,
     endDate: Date
@@ -132,8 +131,7 @@ export class SmartContractListingManager implements ListingManager {
   }
 
   async requestNewRental(
-    vehicleId: string,
-    vehicleOwner: string,
+    vehicle: Vehicle,
     renter: string,
     startDate: Date,
     endDate: Date
@@ -142,9 +140,10 @@ export class SmartContractListingManager implements ListingManager {
       contractAddress: this.factoryAddress,
       functionName: "newRentalAgreement",
       abi: agreementsFactoryAbi.abi,
+      msgValue: vehicle.bondRequired!.add(vehicle.baseHourFee!),
       params: {
-        _vehicleId: vehicleId,
-        _vehicleOwner: vehicleOwner,
+        _vehicleId: vehicle.id,
+        _vehicleOwner: vehicle.vehicleOwner,
         _renter: renter,
         _startDateTime: Math.floor(startDate.getTime() / 1000),
         _endDateTime: Math.floor(endDate.getTime() / 1000),
@@ -152,7 +151,6 @@ export class SmartContractListingManager implements ListingManager {
     };
 
     const transaction = await this.moralis.executeFunction(sendOptions);
-    console.log(transaction);
     await transaction.wait();
   }
 }
@@ -218,8 +216,7 @@ export class LocalListingManager implements ListingManager {
   }
 
   async requestNewRental(
-    vehicleId: string,
-    vehicleOwner: string,
+    vehicle: Vehicle,
     renter: string,
     startDate: Date,
     endDate: Date
