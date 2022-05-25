@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import axios from "axios";
 import Smartcar from "@smartcar/auth";
 import {
@@ -12,10 +12,8 @@ import {
   Tab,
 } from "react-bootstrap";
 import { useMoralis } from "react-moralis";
-import { LocalListingManager, Vehicle } from "../listings";
+import { SmartContractListingManager, Vehicle } from "../listings";
 import { BigNumber, ethers } from "ethers";
-
-const listingManager = new LocalListingManager();
 
 function VehicleComponent({
   vehicle,
@@ -24,6 +22,11 @@ function VehicleComponent({
   vehicle: Vehicle;
   fetchVehicles: () => Promise<void>;
 }) {
+  const { account, Moralis } = useMoralis();
+  const listingManager = account
+    ? new SmartContractListingManager(account, Moralis)
+    : null;
+
   const [isUploading, setIsUploading] = useState(false);
   const [show, setShow] = useState(false);
 
@@ -37,7 +40,7 @@ function VehicleComponent({
     if (!bondRequired || !hourFee) return;
 
     setIsUploading(true);
-    await listingManager.createListing(vehicle, bondRequired, hourFee);
+    await listingManager?.createListing(vehicle, bondRequired, hourFee);
     await fetchVehicles();
     setIsUploading(false);
     handleClose();
@@ -119,7 +122,11 @@ function VehicleComponent({
 }
 
 function Vehicles() {
-  const { isAuthenticated, user } = useMoralis();
+  const { isAuthenticated, user, account, Moralis } = useMoralis();
+  const listingManager = useMemo(() => {
+    return account ? new SmartContractListingManager(account, Moralis) : null;
+  }, [account, Moralis]);
+
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   async function onComplete(err: any, code: any, status: any) {
@@ -158,7 +165,7 @@ function Vehicles() {
 
     const vehicles: Vehicle[] = await Promise.all(
       resp.data.vehicles.map(async (v: Vehicle) => {
-        const listing = await listingManager.getListing(v.id);
+        const listing = await listingManager?.getListing(v.id);
         if (listing) {
           v.cid = listing.cid;
           v.bondRequired = listing.bondRequired;
@@ -169,7 +176,7 @@ function Vehicles() {
     );
 
     setVehicles(vehicles);
-  }, [user]);
+  }, [user, listingManager]);
 
   React.useEffect(() => {
     fetchVehicles();
@@ -213,6 +220,7 @@ function Vehicles() {
                 <Tab.Content>
                   {vehicles.map((vehicle: Vehicle) => (
                     <VehicleComponent
+                      key={vehicle.id}
                       vehicle={vehicle}
                       fetchVehicles={fetchVehicles}
                     />

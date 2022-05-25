@@ -1,24 +1,25 @@
 import { ethers } from "ethers";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button, Col, Container, ListGroup, Row, Tab } from "react-bootstrap";
 import { useMoralis } from "react-moralis";
-import { LocalListingManager, Vehicle } from "../listings";
-
-const listingManager = new LocalListingManager();
+import { SmartContractListingManager, Vehicle } from "../listings";
 
 function Browse() {
-  const { user } = useMoralis();
+  const { user, account, Moralis } = useMoralis();
+  const listingManager = useMemo(() => {
+    return account ? new SmartContractListingManager(account, Moralis) : null;
+  }, [account, Moralis]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   const fetchVehicles = React.useCallback(async () => {
-    if (!user) {
+    if (!user || !listingManager) {
       return;
     }
 
-    const vehicles: Vehicle[] = await listingManager.getListings();
+    const vehicles: Vehicle[] = await listingManager!.getListings();
 
     setVehicles(vehicles);
-  }, [user]);
+  }, [user, listingManager]);
 
   React.useEffect(() => {
     fetchVehicles();
