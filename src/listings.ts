@@ -12,11 +12,14 @@ export type Vehicle = {
   vin: string;
   cid?: string;
   meta?: any;
+  vehicleOwner?: string;
   baseHourFee?: BigNumber;
   bondRequired?: BigNumber;
 };
 
 type Listing = {
+  vehicleId: string;
+  vehicleOwner: string;
   cid: string;
   baseHourFee: BigNumber;
   bondRequired: BigNumber;
@@ -30,6 +33,13 @@ export interface ListingManager {
   ): Promise<void>;
   getListing(vehicleId: string): Promise<Listing | null>;
   getListings(): Promise<Vehicle[]>;
+  requestNewRental(
+    vehicleId: string,
+    vehicleOwner: string,
+    renter: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<void>;
 }
 
 export class SmartContractListingManager implements ListingManager {
@@ -86,6 +96,8 @@ export class SmartContractListingManager implements ListingManager {
       await this.moralis.executeFunction(readOptions);
 
     return {
+      vehicleId: _vehicleId,
+      vehicleOwner: vehicleOwner,
       cid: cid,
       baseHourFee: baseHourFee,
       bondRequired: bondRequired,
@@ -118,6 +130,31 @@ export class SmartContractListingManager implements ListingManager {
 
     return vehicles.filter((v) => v != null);
   }
+
+  async requestNewRental(
+    vehicleId: string,
+    vehicleOwner: string,
+    renter: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<void> {
+    const sendOptions = {
+      contractAddress: this.factoryAddress,
+      functionName: "newRentalAgreement",
+      abi: agreementsFactoryAbi.abi,
+      params: {
+        _vehicleId: vehicleId,
+        _vehicleOwner: vehicleOwner,
+        _renter: renter,
+        _startDateTime: Math.floor(startDate.getTime() / 1000),
+        _endDateTime: Math.floor(endDate.getTime() / 1000),
+      },
+    };
+
+    const transaction = await this.moralis.executeFunction(sendOptions);
+    console.log(transaction);
+    await transaction.wait();
+  }
 }
 
 export class LocalListingManager implements ListingManager {
@@ -134,6 +171,8 @@ export class LocalListingManager implements ListingManager {
     const cid = await saveListingToFilecoin(this.web3Storage, vehicle);
 
     const listing: Listing = {
+      vehicleId: vehicle.id,
+      vehicleOwner: "0x0",
       baseHourFee: baseHourFee,
       bondRequired: bondRequired,
       cid: cid,
@@ -176,6 +215,16 @@ export class LocalListingManager implements ListingManager {
     );
 
     return vehicles;
+  }
+
+  async requestNewRental(
+    vehicleId: string,
+    vehicleOwner: string,
+    renter: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<void> {
+    return;
   }
 }
 
