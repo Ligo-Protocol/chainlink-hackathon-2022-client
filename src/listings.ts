@@ -3,6 +3,7 @@ import { BigNumber } from "ethers";
 import { Web3Storage } from "web3.storage";
 
 import agreementsFactoryAbi from "./contracts-abi/LigoAgreementsFactory.json";
+import rentalAgreementAbi from "./contracts-abi/LigoRentalAgreement.json";
 
 export type Vehicle = {
   id: string;
@@ -17,12 +18,31 @@ export type Vehicle = {
   bondRequired?: BigNumber;
 };
 
+enum RentalAgreementStatus {
+  PROPOSED,
+  APPROVED,
+  REJECTED,
+  ACTIVE,
+  COMPLETED,
+}
+
 type Listing = {
   vehicleId: string;
   vehicleOwner: string;
   cid: string;
   baseHourFee: BigNumber;
   bondRequired: BigNumber;
+};
+
+export type Rental = {
+  contractAddress: string;
+  vehicleOwner: string;
+  renter: string;
+  startDateTime: Date;
+  endDateTime: Date;
+  totalRentCost: BigNumber;
+  totalBond: BigNumber;
+  agreementStatus: RentalAgreementStatus;
 };
 
 export interface ListingManager {
@@ -33,6 +53,7 @@ export interface ListingManager {
   ): Promise<void>;
   getListing(vehicleId: string): Promise<Listing | null>;
   getListings(): Promise<Vehicle[]>;
+  getRentals(isOwner: boolean, user: string): Promise<Rental[]>;
   requestNewRental(
     vehicle: Vehicle,
     renter: string,
@@ -153,6 +174,55 @@ export class SmartContractListingManager implements ListingManager {
     const transaction = await this.moralis.executeFunction(sendOptions);
     await transaction.wait();
   }
+
+  async getRentals(isOwner: boolean, user: string): Promise<Rental[]> {
+    const readOptions = {
+      contractAddress: this.factoryAddress,
+      functionName: "getRentalContractsByUser",
+      abi: agreementsFactoryAbi.abi,
+      params: {
+        _isOwner: isOwner,
+        _address: user,
+      },
+    };
+    const rentalAddrs = await this.moralis.executeFunction(readOptions);
+
+    const rentals = await Promise.all(
+      rentalAddrs.map(async (rentalAddr: string) => {
+        const readOptions = {
+          contractAddress: rentalAddr,
+          functionName: "getAgreementDetails",
+          abi: rentalAgreementAbi.abi,
+          params: {
+            _isOwner: isOwner,
+            _address: user,
+          },
+        };
+        const [
+          vehicleOwner,
+          renter,
+          startDateTime,
+          endDateTime,
+          totalRentCost,
+          totalBond,
+          agreementStatus,
+        ] = await this.moralis.executeFunction(readOptions);
+
+        return {
+          contractAddress: rentalAddr,
+          vehicleOwner,
+          renter,
+          startDateTime: new Date(startDateTime.toNumber() * 1000),
+          endDateTime: new Date(endDateTime.toNumber() * 1000),
+          totalRentCost,
+          totalBond,
+          agreementStatus,
+        };
+      })
+    );
+
+    return rentals;
+  }
 }
 
 export class LocalListingManager implements ListingManager {
@@ -222,6 +292,10 @@ export class LocalListingManager implements ListingManager {
     endDate: Date
   ): Promise<void> {
     return;
+  }
+
+  async getRentals(isOwner: boolean, user: string): Promise<Rental[]> {
+    return [];
   }
 }
 

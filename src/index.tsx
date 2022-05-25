@@ -8,6 +8,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import LigoHeader from "./components/LigoHeader";
 import Vehicles from "./components/Vehicles";
 import Browse from "./components/Browse";
+import Rentals from "./components/Rentals";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -23,6 +24,7 @@ root.render(
         <Routes>
           <Route path="/" element={<Vehicles />} />
           <Route path="/browse" element={<Browse />} />
+          <Route path="/rentals" element={<Rentals />} />
         </Routes>
       </BrowserRouter>
     </MoralisProvider>

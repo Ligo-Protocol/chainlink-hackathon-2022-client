@@ -72,6 +72,7 @@ function LigoHeader() {
           <Nav>
             <Nav.Link href="/">My Vehicles</Nav.Link>
             <Nav.Link href="/browse">Browse</Nav.Link>
+            <Nav.Link href="/rentals">Rentals</Nav.Link>
           </Nav>
         </Navbar.Collapse>
         <Navbar.Collapse className="justify-content-end">
