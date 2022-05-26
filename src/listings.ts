@@ -52,6 +52,19 @@ export type Rental = {
   totalRentCost: BigNumber;
   totalBond: BigNumber;
   agreementStatus: RentalAgreementStatus;
+  vehicle: Vehicle;
+  startOdometer?: BigNumber;
+  startVehicleLongitude?: BigNumber;
+  startVehicleLatitude?: BigNumber;
+  endOdometer?: BigNumber;
+  endVehicleLongitude?: BigNumber;
+  endVehicleLatitude?: BigNumber;
+  totalLocationPenalty: BigNumber;
+  totalOdometerPenalty: BigNumber;
+  totalTimePenalty: BigNumber;
+  totalPlatformFee: BigNumber;
+  totalRentPayable: BigNumber;
+  totalBondReturned: BigNumber;
 };
 
 export interface ListingManager {
@@ -62,6 +75,7 @@ export interface ListingManager {
   ): Promise<void>;
   getListing(vehicleId: string): Promise<Listing | null>;
   getListings(): Promise<Vehicle[]>;
+  getVehicle(vehicleId: string): Promise<Vehicle | null>;
   getRentals(isOwner: boolean, user: string): Promise<Rental[]>;
   requestNewRental(
     vehicle: Vehicle,
@@ -72,6 +86,7 @@ export interface ListingManager {
   approveRental(rental: Rental): Promise<void>;
   rejectRental(rental: Rental): Promise<void>;
   activateRental(rental: Rental): Promise<void>;
+  endRental(rental: Rental): Promise<void>;
 }
 
 export class SmartContractListingManager implements ListingManager {
@@ -146,21 +161,23 @@ export class SmartContractListingManager implements ListingManager {
 
     const vehicles = await Promise.all(
       vehicleIds.map(async (vehicleId: string) => {
-        const listing = await this.getListing(vehicleId);
-        try {
-          const resp = await axios.get(
-            `https://${listing!.cid}.ipfs.dweb.link`
-          );
-          let vehicle = { ...(resp.data as Vehicle), ...listing };
-          return vehicle;
-        } catch (err) {
-          console.error(err);
-          return null;
-        }
+        return await this.getVehicle(vehicleId);
       })
     );
 
     return vehicles.filter((v) => v != null);
+  }
+
+  async getVehicle(vehicleId: string): Promise<Vehicle | null> {
+    const listing = await this.getListing(vehicleId);
+    try {
+      const resp = await axios.get(`https://${listing!.cid}.ipfs.dweb.link`);
+      let vehicle = { ...(resp.data as Vehicle), ...listing };
+      return vehicle;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
   }
 
   async requestNewRental(
@@ -203,6 +220,16 @@ export class SmartContractListingManager implements ListingManager {
       rentalAddrs.map(async (rentalAddr: string) => {
         const readOptions = {
           contractAddress: rentalAddr,
+          functionName: "getVehicleId",
+          abi: rentalAgreementAbi.abi,
+        };
+        const vehicleId: string = await this.moralis.executeFunction(
+          readOptions
+        );
+        const vehicle = await this.getVehicle(vehicleId);
+
+        const readOptions1 = {
+          contractAddress: rentalAddr,
           functionName: "getAgreementDetails",
           abi: rentalAgreementAbi.abi,
           params: {
@@ -218,7 +245,35 @@ export class SmartContractListingManager implements ListingManager {
           totalRentCost,
           totalBond,
           agreementStatus,
-        ] = await this.moralis.executeFunction(readOptions);
+        ] = await this.moralis.executeFunction(readOptions1);
+
+        const readOptions2 = {
+          contractAddress: rentalAddr,
+          functionName: "getAgreementData",
+          abi: rentalAgreementAbi.abi,
+        };
+        const [
+          startOdometer,
+          startVehicleLongitude,
+          startVehicleLatitude,
+          endOdometer,
+          endVehicleLongitude,
+          endVehicleLatitude,
+        ] = await this.moralis.executeFunction(readOptions2);
+
+        const readOptions3 = {
+          contractAddress: rentalAddr,
+          functionName: "getPaymentDetails",
+          abi: rentalAgreementAbi.abi,
+        };
+        const [
+          totalLocationPenalty,
+          totalOdometerPenalty,
+          totalTimePenalty,
+          totalPlatformFee,
+          totalRentPayable,
+          totalBondReturned,
+        ] = await this.moralis.executeFunction(readOptions3);
 
         return {
           contractAddress: rentalAddr,
@@ -229,6 +284,19 @@ export class SmartContractListingManager implements ListingManager {
           totalRentCost,
           totalBond,
           agreementStatus,
+          vehicle,
+          startOdometer,
+          startVehicleLongitude,
+          startVehicleLatitude,
+          endOdometer,
+          endVehicleLongitude,
+          endVehicleLatitude,
+          totalLocationPenalty,
+          totalOdometerPenalty,
+          totalTimePenalty,
+          totalPlatformFee,
+          totalRentPayable,
+          totalBondReturned,
         };
       })
     );
@@ -259,11 +327,29 @@ export class SmartContractListingManager implements ListingManager {
   }
 
   async activateRental(rental: Rental): Promise<void> {
-    // const encToken = await generateToken()
+    const encToken = await generateToken(rental.vehicle.vehicleOwnerId!);
     const sendOptions = {
       contractAddress: rental.contractAddress,
       functionName: "activateRentalContract",
       abi: rentalAgreementAbi.abi,
+      params: {
+        _encToken: encToken,
+      },
+    };
+
+    const transaction = await this.moralis.executeFunction(sendOptions);
+    await transaction.wait();
+  }
+
+  async endRental(rental: Rental): Promise<void> {
+    const encToken = await generateToken(rental.vehicle.vehicleOwnerId!);
+    const sendOptions = {
+      contractAddress: rental.contractAddress,
+      functionName: "endRentalContract",
+      abi: rentalAgreementAbi.abi,
+      params: {
+        _encToken: encToken,
+      },
     };
 
     const transaction = await this.moralis.executeFunction(sendOptions);

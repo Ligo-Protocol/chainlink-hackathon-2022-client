@@ -1,6 +1,14 @@
 import { ethers } from "ethers";
 import React, { useMemo, useState } from "react";
-import { Button, Col, Container, ListGroup, Row, Tab } from "react-bootstrap";
+import {
+  Button,
+  Card,
+  Col,
+  Container,
+  ListGroup,
+  Row,
+  Tab,
+} from "react-bootstrap";
 import { useMoralis } from "react-moralis";
 import {
   Rental,
@@ -45,12 +53,27 @@ function RentalComponent({
     setIsLoading(false);
   }
 
+  async function endRental() {
+    setIsLoading(true);
+    await listingManager?.endRental(rental);
+    await fetchRentals();
+    setIsLoading(false);
+  }
+
   return (
     <>
       <Tab.Pane
         key={rental.contractAddress}
         eventKey={`#${rental.contractAddress}`}
       >
+        <h2>
+          {rental.vehicle.year} {rental.vehicle.make} {rental.vehicle.model}
+        </h2>
+        <p>Make: {rental.vehicle.make}</p>
+        <p>Model: {rental.vehicle.model}</p>
+        <p>Year: {rental.vehicle.year}</p>
+        <p>ID: {rental.vehicle.id}</p>
+        <p>VIN: {rental.vehicle.vin}</p>
         <h3>{rental.contractAddress}</h3>
         <p>Vehicle Owner: {rental.vehicleOwner}</p>
         <p>Start Date: {rental.startDateTime.toISOString()}</p>
@@ -64,6 +87,69 @@ function RentalComponent({
           Agreement Status:{" "}
           {RentalAgreementStatusDisplay[rental.agreementStatus]}
         </p>
+        {rental.agreementStatus === RentalAgreementStatus.ACTIVE ||
+        rental.agreementStatus === RentalAgreementStatus.COMPLETED ? (
+          <Card className="mb-3">
+            <Card.Header>Oracle Data</Card.Header>
+            <Card.Body>
+              {rental.startOdometer?.gt(0) ? (
+                <p>Start Odometer: {rental.startOdometer.toString()}</p>
+              ) : null}
+              {!rental.startVehicleLatitude?.eq(0) &&
+              !rental.startVehicleLongitude?.eq(0) ? (
+                <p>
+                  Start Vehicle Coordinates:{" "}
+                  {rental.startVehicleLatitude!.toNumber() / 100000},{" "}
+                  {rental.startVehicleLongitude!.toNumber() / 100000}
+                </p>
+              ) : null}
+              {rental.endOdometer?.gt(0) ? (
+                <p>End Odometer: {rental.endOdometer.toString()}</p>
+              ) : null}
+              {!rental.endVehicleLatitude?.eq(0) &&
+              !rental.endVehicleLongitude?.eq(0) ? (
+                <p>
+                  End Vehicle Coordinates:{" "}
+                  {rental.endVehicleLatitude!.toNumber() / 100000},{" "}
+                  {rental.endVehicleLongitude!.toNumber() / 100000}
+                </p>
+              ) : null}
+            </Card.Body>
+          </Card>
+        ) : null}
+
+        {rental.agreementStatus === RentalAgreementStatus.COMPLETED ? (
+          <Card className="mb-3">
+            <Card.Header>Payment Details</Card.Header>
+            <Card.Body>
+              <p>
+                Total Location Penalty:{" "}
+                {ethers.utils.formatEther(rental.totalLocationPenalty)} ETH
+              </p>
+              <p>
+                Total Odometer Penalty:{" "}
+                {ethers.utils.formatEther(rental.totalOdometerPenalty)} ETH
+              </p>
+              <p>
+                Total Platform Fee:{" "}
+                {ethers.utils.formatEther(rental.totalPlatformFee)} ETH
+              </p>
+              <p>
+                Total Time Penalty:{" "}
+                {ethers.utils.formatEther(rental.totalTimePenalty)} ETH
+              </p>
+              <p>
+                Total Rent Payable:{" "}
+                {ethers.utils.formatEther(rental.totalRentPayable)} ETH
+              </p>
+              <p>
+                Total Bond Returned:{" "}
+                {ethers.utils.formatEther(rental.totalBondReturned)} ETH
+              </p>
+            </Card.Body>
+          </Card>
+        ) : null}
+
         {rental.agreementStatus === RentalAgreementStatus.PROPOSED && isHost ? (
           <>
             <Button
@@ -75,6 +161,7 @@ function RentalComponent({
             </Button>
             <Button
               variant="primary"
+              className="mx-3"
               onClick={rejectRental}
               disabled={isLoading}
             >
@@ -84,13 +171,25 @@ function RentalComponent({
         ) : null}
         {rental.agreementStatus === RentalAgreementStatus.APPROVED &&
         !isHost ? (
-          <Button
-            variant="primary"
-            onClick={activateRental}
-            disabled={isLoading}
-          >
-            Activate Rental
-          </Button>
+          rental.startDateTime > new Date() ? (
+            <p>Waiting for rental to start...</p>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={activateRental}
+              disabled={isLoading}
+            >
+              Activate Rental
+            </Button>
+          )
+        ) : null}
+
+        {rental.agreementStatus === RentalAgreementStatus.ACTIVE && !isHost ? (
+          <>
+            <Button variant="danger" onClick={endRental} disabled={isLoading}>
+              End Rental
+            </Button>
+          </>
         ) : null}
       </Tab.Pane>
     </>
