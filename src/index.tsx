@@ -1,14 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import reportWebVitals from "./reportWebVitals";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MoralisProvider } from "react-moralis";
-
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
-import LigoHeader from "./components/LigoHeader";
-import Vehicles from "./components/Vehicles";
-import Browse from "./components/Browse";
-import Rentals from "./components/Rentals";
+import App from "./app";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -19,12 +15,9 @@ root.render(
       serverUrl={process.env.REACT_APP_MORALIS_SERVER!}
       appId={process.env.REACT_APP_MORALIS_APP_ID!}
     >
-      <LigoHeader />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Vehicles />} />
-          <Route path="/browse" element={<Browse />} />
-          <Route path="/rentals" element={<Rentals />} />
+          <Route path="/" element={<App />} />
         </Routes>
       </BrowserRouter>
     </MoralisProvider>

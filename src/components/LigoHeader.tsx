@@ -67,12 +67,11 @@ function LigoHeader() {
     <Navbar bg="light" expand="lg">
       <Container>
         <Navbar.Brand href="/">Ligo Demo</Navbar.Brand>
-        <Navbar.Toggle />
         <Navbar.Collapse>
           <Nav>
-            <Nav.Link href="/">My Vehicles</Nav.Link>
-            <Nav.Link href="/browse">Browse</Nav.Link>
-            <Nav.Link href="/rentals">Rentals</Nav.Link>
+            <Nav.Link href="#vehicles">My Vehicles</Nav.Link>
+            <Nav.Link href="#browse">Browse</Nav.Link>
+            <Nav.Link href="#rentals">Rentals</Nav.Link>
           </Nav>
         </Navbar.Collapse>
         <Navbar.Collapse className="justify-content-end">
