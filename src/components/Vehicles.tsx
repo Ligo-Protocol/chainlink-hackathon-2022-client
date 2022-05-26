@@ -166,6 +166,7 @@ function Vehicles() {
     const vehicles: Vehicle[] = await Promise.all(
       resp.data.vehicles.map(async (v: Vehicle) => {
         const listing = await listingManager?.getListing(v.id);
+        v.vehicleOwnerId = user!.id;
         if (listing) {
           v.cid = listing.cid;
           v.bondRequired = listing.bondRequired;

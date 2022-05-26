@@ -2,7 +2,12 @@ import { ethers } from "ethers";
 import React, { useMemo, useState } from "react";
 import { Button, Col, Container, ListGroup, Row, Tab } from "react-bootstrap";
 import { useMoralis } from "react-moralis";
-import { Rental, SmartContractListingManager, Vehicle } from "../listings";
+import {
+  Rental,
+  RentalAgreementStatus,
+  RentalAgreementStatusDisplay,
+  SmartContractListingManager,
+} from "../listings";
 
 function RentalComponent({
   rental,
@@ -17,22 +22,28 @@ function RentalComponent({
     : null;
 
   const [isLoading, setIsLoading] = useState(false);
+  const isHost = rental.vehicleOwner.toLowerCase() === account!.toLowerCase();
 
-  //   async function requestRental() {
-  //     setIsLoading(true);
-  //     const startDate = new Date();
-  //     startDate.setMinutes(startDate.getMinutes() + 10);
-  //     const endDate = new Date(startDate);
-  //     endDate.setHours(endDate.getHours() + 1);
-  //     await listingManager?.requestNewRental(
-  //       vehicle,
-  //       account!,
-  //       startDate,
-  //       endDate
-  //     );
-  //     await fetchVehicles();
-  //     setIsLoading(false);
-  //   }
+  async function approveRental() {
+    setIsLoading(true);
+    await listingManager?.approveRental(rental);
+    await fetchRentals();
+    setIsLoading(false);
+  }
+
+  async function rejectRental() {
+    setIsLoading(true);
+    await listingManager?.rejectRental(rental);
+    await fetchRentals();
+    setIsLoading(false);
+  }
+
+  async function activateRental() {
+    setIsLoading(true);
+    await listingManager?.activateRental(rental);
+    await fetchRentals();
+    setIsLoading(false);
+  }
 
   return (
     <>
@@ -45,13 +56,42 @@ function RentalComponent({
         <p>Start Date: {rental.startDateTime.toISOString()}</p>
         <p>End Date: {rental.endDateTime.toISOString()}</p>
         <p>Renter: {rental.renter}</p>
-        <p className="fw-bold">{`Total Rent Cost: ${ethers.utils.formatEther(
+        <p>{`Total Rent Cost: ${ethers.utils.formatEther(
           rental.totalRentCost
         )} ETH`}</p>
-        <p className="fw-bold">{`Total Bond: ${ethers.utils.formatEther(
-          rental.totalBond
-        )} ETH`}</p>
-        <p>Agreement Status: {rental.agreementStatus}</p>
+        <p>{`Total Bond: ${ethers.utils.formatEther(rental.totalBond)} ETH`}</p>
+        <p className="fw-bold">
+          Agreement Status:{" "}
+          {RentalAgreementStatusDisplay[rental.agreementStatus]}
+        </p>
+        {rental.agreementStatus === RentalAgreementStatus.PROPOSED && isHost ? (
+          <>
+            <Button
+              variant="primary"
+              onClick={approveRental}
+              disabled={isLoading}
+            >
+              Accept Booking
+            </Button>
+            <Button
+              variant="primary"
+              onClick={rejectRental}
+              disabled={isLoading}
+            >
+              Reject Booking
+            </Button>
+          </>
+        ) : null}
+        {rental.agreementStatus === RentalAgreementStatus.APPROVED &&
+        !isHost ? (
+          <Button
+            variant="primary"
+            onClick={activateRental}
+            disabled={isLoading}
+          >
+            Activate Rental
+          </Button>
+        ) : null}
       </Tab.Pane>
     </>
   );
@@ -62,16 +102,27 @@ function Rentals() {
   const listingManager = useMemo(() => {
     return account ? new SmartContractListingManager(account, Moralis) : null;
   }, [account, Moralis]);
-  const [rentals, setRentals] = useState<Rental[]>([]);
+  const [guestRentals, setGuestRentals] = useState<Rental[]>([]);
+  const [hostRentals, setHostRentals] = useState<Rental[]>([]);
+
+  const rentals = guestRentals.concat(hostRentals);
 
   const fetchRentals = React.useCallback(async () => {
     if (!user || !listingManager || !account) {
       return;
     }
 
-    const _rentals: Rental[] = await listingManager!.getRentals(false, account);
+    const _guestRentals: Rental[] = await listingManager!.getRentals(
+      false,
+      account
+    );
+    const _hostRentals: Rental[] = await listingManager!.getRentals(
+      true,
+      account
+    );
 
-    setRentals(_rentals);
+    setGuestRentals(_guestRentals);
+    setHostRentals(_hostRentals);
   }, [user, listingManager, account]);
 
   React.useEffect(() => {

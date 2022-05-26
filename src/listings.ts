@@ -14,17 +14,26 @@ export type Vehicle = {
   cid?: string;
   meta?: any;
   vehicleOwner?: string;
+  vehicleOwnerId?: string;
   baseHourFee?: BigNumber;
   bondRequired?: BigNumber;
 };
 
-enum RentalAgreementStatus {
+export enum RentalAgreementStatus {
   PROPOSED,
   APPROVED,
   REJECTED,
   ACTIVE,
   COMPLETED,
 }
+
+export const RentalAgreementStatusDisplay = {
+  0: "PROPOSED",
+  1: "APPROVED",
+  2: "REJECTED",
+  3: "ACTIVE",
+  4: "COMPLETED",
+};
 
 type Listing = {
   vehicleId: string;
@@ -60,6 +69,9 @@ export interface ListingManager {
     startDate: Date,
     endDate: Date
   ): Promise<void>;
+  approveRental(rental: Rental): Promise<void>;
+  rejectRental(rental: Rental): Promise<void>;
+  activateRental(rental: Rental): Promise<void>;
 }
 
 export class SmartContractListingManager implements ListingManager {
@@ -223,81 +235,115 @@ export class SmartContractListingManager implements ListingManager {
 
     return rentals;
   }
+
+  async approveRental(rental: Rental): Promise<void> {
+    const sendOptions = {
+      contractAddress: rental.contractAddress,
+      functionName: "approveContract",
+      abi: rentalAgreementAbi.abi,
+    };
+
+    const transaction = await this.moralis.executeFunction(sendOptions);
+    await transaction.wait();
+  }
+
+  async rejectRental(rental: Rental): Promise<void> {
+    const sendOptions = {
+      contractAddress: rental.contractAddress,
+      functionName: "rejectContract",
+      abi: rentalAgreementAbi.abi,
+    };
+
+    const transaction = await this.moralis.executeFunction(sendOptions);
+    await transaction.wait();
+  }
+
+  async activateRental(rental: Rental): Promise<void> {
+    // const encToken = await generateToken()
+    const sendOptions = {
+      contractAddress: rental.contractAddress,
+      functionName: "activateRentalContract",
+      abi: rentalAgreementAbi.abi,
+    };
+
+    const transaction = await this.moralis.executeFunction(sendOptions);
+    await transaction.wait();
+  }
 }
 
-export class LocalListingManager implements ListingManager {
-  web3Storage = new Web3Storage({
-    token: process.env.REACT_APP_WEB3STORAGE_TOKEN!,
-  });
+// export class LocalListingManager implements ListingManager {
+//   web3Storage = new Web3Storage({
+//     token: process.env.REACT_APP_WEB3STORAGE_TOKEN!,
+//   });
 
-  async createListing(
-    vehicle: Vehicle,
-    baseHourFee: BigNumber,
-    bondRequired: BigNumber
-  ) {
-    // Save to Filecoin
-    const cid = await saveListingToFilecoin(this.web3Storage, vehicle);
+//   async createListing(
+//     vehicle: Vehicle,
+//     baseHourFee: BigNumber,
+//     bondRequired: BigNumber
+//   ) {
+//     // Save to Filecoin
+//     const cid = await saveListingToFilecoin(this.web3Storage, vehicle);
 
-    const listing: Listing = {
-      vehicleId: vehicle.id,
-      vehicleOwner: "0x0",
-      baseHourFee: baseHourFee,
-      bondRequired: bondRequired,
-      cid: cid,
-    };
-    // Save cid to localStorage
-    const listingsRaw = localStorage.getItem("listings");
-    let listings: Record<string, Listing> = listingsRaw
-      ? JSON.parse(listingsRaw)
-      : {};
+//     const listing: Listing = {
+//       vehicleId: vehicle.id,
+//       vehicleOwner: "0x0",
+//       baseHourFee: baseHourFee,
+//       bondRequired: bondRequired,
+//       cid: cid,
+//     };
+//     // Save cid to localStorage
+//     const listingsRaw = localStorage.getItem("listings");
+//     let listings: Record<string, Listing> = listingsRaw
+//       ? JSON.parse(listingsRaw)
+//       : {};
 
-    listings = {
-      ...listings,
-      [vehicle.id]: listing,
-    };
-    localStorage.setItem("listings", JSON.stringify(listings));
-  }
+//     listings = {
+//       ...listings,
+//       [vehicle.id]: listing,
+//     };
+//     localStorage.setItem("listings", JSON.stringify(listings));
+//   }
 
-  async getListing(vehicleId: string): Promise<Listing | null> {
-    const listingsRaw = localStorage.getItem("listings");
-    const listings: Record<string, Listing> = listingsRaw
-      ? JSON.parse(listingsRaw)
-      : {};
+//   async getListing(vehicleId: string): Promise<Listing | null> {
+//     const listingsRaw = localStorage.getItem("listings");
+//     const listings: Record<string, Listing> = listingsRaw
+//       ? JSON.parse(listingsRaw)
+//       : {};
 
-    return listings[vehicleId];
-  }
+//     return listings[vehicleId];
+//   }
 
-  async getListings(): Promise<Vehicle[]> {
-    const listingsRaw = localStorage.getItem("listings");
-    const listings: Record<string, Listing> = listingsRaw
-      ? JSON.parse(listingsRaw)
-      : {};
+//   async getListings(): Promise<Vehicle[]> {
+//     const listingsRaw = localStorage.getItem("listings");
+//     const listings: Record<string, Listing> = listingsRaw
+//       ? JSON.parse(listingsRaw)
+//       : {};
 
-    const vehicles = await Promise.all(
-      Object.keys(listings).map(async (vehicleId: string) => {
-        const cid = listings[vehicleId].cid;
-        const resp = await axios.get(`https://${cid}.ipfs.dweb.link`);
-        let vehicle = { ...(resp.data as Vehicle), ...listings[vehicleId] };
-        return vehicle;
-      })
-    );
+//     const vehicles = await Promise.all(
+//       Object.keys(listings).map(async (vehicleId: string) => {
+//         const cid = listings[vehicleId].cid;
+//         const resp = await axios.get(`https://${cid}.ipfs.dweb.link`);
+//         let vehicle = { ...(resp.data as Vehicle), ...listings[vehicleId] };
+//         return vehicle;
+//       })
+//     );
 
-    return vehicles;
-  }
+//     return vehicles;
+//   }
 
-  async requestNewRental(
-    vehicle: Vehicle,
-    renter: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<void> {
-    return;
-  }
+//   async requestNewRental(
+//     vehicle: Vehicle,
+//     renter: string,
+//     startDate: Date,
+//     endDate: Date
+//   ): Promise<void> {
+//     return;
+//   }
 
-  async getRentals(isOwner: boolean, user: string): Promise<Rental[]> {
-    return [];
-  }
-}
+//   async getRentals(isOwner: boolean, user: string): Promise<Rental[]> {
+//     return [];
+//   }
+// }
 
 async function saveListingToFilecoin(
   web3Storage: Web3Storage,
@@ -313,4 +359,11 @@ async function saveListingToFilecoin(
   const files = [new File([blob], "listing.json")];
   const cid = await web3Storage.put(files, { wrapWithDirectory: false });
   return cid;
+}
+
+async function generateToken(userId: string) {
+  const resp = await axios.get(
+    `${process.env.REACT_APP_LIGO_NODE_ENDPOINT}/api/v0/smartcar/users/${userId}/token`
+  );
+  return resp.data.encryptedToken;
 }
